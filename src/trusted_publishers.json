@@ -1,0 +1,23 @@
+{
+    "trusted_publishers": [
+        {
+            "name": "Smithsonian",
+            "publisher_id": "si.edu",
+            "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjcoD10RCKBeDRGLsGZgo\ncb095yvaCuQIGK1d8WeW6HSOOPBNuHjfb3ugb9tRYSdEweN2NQpFS2exTJjW0HNL\nOV4+8eiPhrYDJsKV26nikjV3cyVewRL9R7/saS3V0HUDGPDjTyZB/fasPlxvbrYS\nU3A3KvvslVg2Os4hZSI3axtL7q6DHhR3kumE2+agoTRRAKd7YO/6STE8nzMBcyqH\ndFq3FzPFdyfGTULMgn7rfS2qiFbIGkyx3hw5za1CpH7HD67pSw5wCAPHiOJfdjfZ\nceExdv2EZ2s4hYTde6+h4ixqdA0lKuIMJOXKgHDgRLtPZ8jls/9/q6Cb3s649uWv\nHQIDAQAB\n-----END PUBLIC KEY-----\n"
+        },
+        {
+            "name": "British Museum",
+            "publisher_id": "britishmuseum.org",
+            "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn1DfHceN/tber4gKm7QO\n5yVu6KBGRJWSrtGxRSHojLzkaK7xyyPWOaSlP+hoOuqwhR9nwihKPV48bezrb2b/\ntNUCwdCqsq18eDehlYJhlF7rl7KVEZoZNGepAq1Y31F5iQpatu0/Y8vWPFQLxEY3\nwuuXqqdwatvGqm75xUpMquJ7sc/2DZJVz+zhrJfMFV6cOp1GWs2NK9pHQGlMQm+P\nKtzDZDL5HE4YqEaLuzDB7r6bPba3HuARfpLRw7Sgr0z1gscmQRb2xOH/fUlXlygG\neSsZg4GKWAD65jeICbDGNN4UbnLFThjUvUpT8mgyrdAzME22yp4GJ275LG7zxFcd\n0wIDAQAB\n-----END PUBLIC KEY-----\n"
+        },
+        {
+            "name": "Israel museum",
+            "publisher_id": "imj.org.il",
+            "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvDoxY5eIq/4xqoyHdj6n\nk/0tx0h5yWqNeaAa5zlzYCSaQCpzTFnyxTXZlI+yLRecHaw0zFlWq9NS0e7X2Hpj\nztE9H9PbAVBNUING9JoHCOJ8LHZhR23Q6lssqm8megVztXHeGrndikdaRvlUTVcg\n8A6fQEdbWpkP9epvmuXU49kUBnkI22AGxH2ZVcWgeNQqzHIMXkhvMVXcwLiUb80z\nueH7sCBUvzoWulup2Yd5J2vOjL91TUT0FDWSqdPg+S8eeaGkBfqN6FTyev8h00Lm\nEOdNbv6/EFWUpPOB9ii+01qV/VrslnIX0WFJeXlksuWd+sIIrYfou0fCNjFUZRtY\nRwIDAQAB\n-----END PUBLIC KEY-----\n"
+        }
+    ],
+    "name": "The Grand Archive",
+    "publisher_id": "thegrandarchive.com",
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhHUXGXoEtobMOLRPES9O\nLZs+nwq95g50Db0bsJSxrnelkJ5kewdVhg4JOYna1iyGsAzo9Sez0/9MN8rBqtE5\nd1YR+GszHwdRUTJQiDy3+xUL1NyZZpZA9IZeOVIJBuGpx/Gj4RuoFHFynINBa2/u\nT9Qk3WpDy7/HcgWGCq99XttcirCE6EAhnP2PkMk3j7YBEcbj9HeSX4j7m5jz/38q\naiGVPxHJGyaaGickd0U6Ddr8jsz2nsvR7I7XUnzaq21Nt+q+AlAX6Vo1vAoXXpWK\nxYOfG+0JsOlyIcc9uBPkjhlaU3WcxpyTOunHashUbeptIYIiIVWq+0MBkdkchkDd\njwIDAQAB\n-----END PUBLIC KEY-----\n",
+    "signature": "3a7b9f361363f7cd7bd2ce3138056ede1cfc82a3042dec58188e316753f12b79243c8f81ad225395669870f7fb85d6476eb406140d0ed8a5d76d8ffeef51c757314b6d21c213ca657b3bed3267156ee505010cd34cbb1ea95e61053a857582fb934f6862394240c04ab1b747b69d56bfe761f0acfaa0d41db9c867fc42c52d31725e9686f3ea85f3fd2bb426864f2143b3bfbb273fab8915b558e6608ef2dd611f61f78788147b9286f76df3faa9c4e3b28489644f93325bfba5ddb5f07e01bcfec5c835e69153a952b0a2ac10d800e880451d1dcbf3a9bab108b926b6490e4d19049d94a0c8c6649a207bfa4f847a04d6a4c23b3a23b73a32dcff212ec9e90d"
+}
