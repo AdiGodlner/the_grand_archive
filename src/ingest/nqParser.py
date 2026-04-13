@@ -110,7 +110,7 @@ def divide_file_to_chunks(filename, chunk_size=1024 * 1024 * 64):
     return chunks
 
 
-def stream_quads(file_name, chunk_size=1024 * 1024 * 64):
+def stream_quads(file_name, chunk_size=1024 * 1024 * 64, fast = False):
     """
     Coordinates the reading of chunks and yields individual quads.
     This is the 'Source' for your output stream.
@@ -125,7 +125,280 @@ def stream_quads(file_name, chunk_size=1024 * 1024 * 64):
             chunk_bytes = f.read(end - start)
 
             # Use 'yield from' to pass quads up from the chunk parser
-            yield from parse_chunk(chunk_bytes)
+            if fast:
+                yield from parse_chunk_fast(chunk_bytes)
+            else:
+                yield from parse_chunk(chunk_bytes)
+
+
+def parse_chunk_fast(chunk):
+    i = 0
+    length = len(chunk)
+
+    while i < length:
+
+        try:
+
+            while i < length:
+                if chunk[i] not in (CR, SPACE, NEWLINE, TAB):
+                    break
+                i += 1
+
+            if i >= length:
+                break
+            # skip comments
+            if chunk[i] == HASH:
+                new_line_index = chunk.find(NEWLINE, i)
+                i = new_line_index + 1 if new_line_index != -1 else length
+                continue
+
+            # skip_intra_line_empty_spaces
+            while chunk[i] in (SPACE, TAB):
+                i += 1
+
+            # parse_subject
+            if chunk[i] == LESS_THEN:
+                # IRIREF
+                next_greater_then_index = chunk.find(GREATER_THEN, i)
+                if next_greater_then_index != -1:
+                    subject = chunk[i + 1:next_greater_then_index]
+                    i = next_greater_then_index + 1
+                else:
+                    raise NQParseError("malformed quad IRI must close with a > char")
+
+            elif chunk[i] == UNDERSCORE:
+
+                if chunk[i + 1] == COLON:
+                    end = i + 2
+                    while chunk[end] not in (SPACE, TAB):
+                        if chunk[end] == NEWLINE:
+                            raise NQParseError("Blank node can't be separated by a new line \\n")
+                        end += 1
+
+                    if end == i + 2:
+                        raise NQParseError("Empty Blank Node label")
+
+                    subject = chunk[i:end]
+                    i = end
+
+                else:
+                    raise NQParseError("malformed b_node")
+
+            else:
+                raise NQParseError(f"subject can only be IRI or be node found {chunk[i]} instead")
+
+            # predicate
+
+            # skip_intra_line_empty_spaces
+            start = i
+            while chunk[start] in (SPACE, TAB):
+                start += 1
+
+            if start == i:
+                raise NQParseError("no spaces between subject and predicate")
+
+            i = start
+
+            if chunk[i] == LESS_THEN:
+                next_greater_then_index = chunk.find(GREATER_THEN, i)
+                if next_greater_then_index != -1:
+                    predicate = chunk[i + 1:next_greater_then_index]
+                    i = next_greater_then_index + 1
+                else:
+                    raise NQParseError("malformed quad IRI must close with a > char")
+
+            else:
+                raise NQParseError("predicate can only be a valid IRIREf")
+
+            # object
+            # obj, i = parse_object(chunk, i, length)
+            start = i
+            while chunk[start] in (SPACE, TAB):
+                start += 1
+
+            if start == i:
+                raise NQParseError("no spaces between predicate and object")
+
+            i = start
+            c = chunk[i]
+
+            if c == LESS_THEN:
+                next_greater_then_index = chunk.find(GREATER_THEN, i)
+                if next_greater_then_index != -1:
+                    val = chunk[i + 1:next_greater_then_index]
+                    i = next_greater_then_index + 1
+                else:
+                    raise NQParseError("malformed quad IRI must close with a > char")
+                #
+                # ( type, literal /  IRIREF / b_node, language / IRIREF (Dtype), region, direction)  i
+                obj = ("IRIREF", val, None, None, None)
+
+            elif c == UNDERSCORE:
+                if chunk[i + 1] == COLON:
+                    end = i + 2
+                    while chunk[end] not in (SPACE, TAB):
+                        if chunk[end] == NEWLINE:
+                            raise NQParseError("Blank node can't be separated by a new line \\n")
+                        end += 1
+
+                    if end == i + 2:
+                        raise NQParseError("Empty Blank Node label")
+
+                    val = chunk[i:end]
+                    i = end
+                else:
+                    raise NQParseError("malformed b_node")
+
+                obj = ("b_node", val, None, None, None)
+
+            ###################################
+            elif c == QUOTE:
+                #################################
+
+                literal, i = extract_literal_raw(chunk, i, length)
+                language, region, direction, IRIREF = None, None, None, None
+
+                c = chunk[i]
+                if c == AT:
+                    i += 1
+                    start = i
+                    has_dash = False
+                    while i < length:
+                        c = chunk[i]
+                        if c == SPACE or c == TAB:
+                            break
+                        elif (A_LOWER <= c <= Z_LOWER) or A_UPPER <= c <= Z_UPPER:
+                            i += 1
+                        elif c == DASH:
+                            i += 1
+                            has_dash = True
+                            break
+                        else:
+                            raise NQParseError("malformed quad literal ")
+
+                    if has_dash:
+                        language = chunk[start:i]
+                        region_idx = i
+                        has_direction = False
+                        while chunk[i] not in (SPACE, TAB):
+                            c = chunk[i]
+                            if A_LOWER <= c <= Z_LOWER or A_UPPER <= c <= Z_UPPER or ZERO <= c <= NINE:
+                                i += 1
+                            elif c == DASH:
+                                i += 1
+                                if chunk[i] == DASH:
+                                    has_direction = True
+                                    region = chunk[region_idx: i - 1]
+                                    i += 1
+                                    break
+                            else:
+                                raise NQParseError("malformed quad literal ")
+
+                        if region_idx == i:
+                            raise NQParseError("malformed quad literal found space after - in language tag")
+                        if has_direction:
+                            direction_start = i
+                            while chunk[i] not in (SPACE, TAB):
+                                c = chunk[i]
+                                if A_LOWER <= c <= Z_LOWER or A_UPPER <= c <= Z_UPPER:
+                                    i += 1
+                                else:
+                                    raise NQParseError("malformed literal direction ")
+
+                            if direction_start == i:
+                                raise NQParseError("malformed language tag found space after -- in direction ")
+                            direction = chunk[direction_start: i]
+
+                    else:
+                        language = chunk[start:i]
+
+                elif c == CARET:
+                    if chunk[i + 1] == CARET and chunk[i + 2] == LESS_THEN:
+
+                        next_greater_then_index = chunk.find(GREATER_THEN, i)
+                        if next_greater_then_index != -1:
+                            IRIREF = chunk[i + 3:next_greater_then_index]
+                            i = next_greater_then_index + 1
+                        else:
+                            raise NQParseError("malformed quad IRI must close with a > char")
+
+                    else:
+                        raise NQParseError("malformed IRIREF ")
+
+                elif c == SPACE or c == TAB:
+                    pass
+                else:
+                    raise NQParseError(f"malformed quad literal char {c} found after end of literal only a space"
+                                       f", @, ^^ are allowed after literal")
+
+                #################################
+                if IRIREF:
+                    obj = ("literal_data_tag", literal, IRIREF, region, direction)
+                else:
+                    obj = ("literal_lang_tag", literal, language, region, direction)
+
+            ###################################
+
+            else:
+                raise NQParseError("malformed quad object can only be an IRIREF , a b_node, or a literal ")
+
+            # graph and dot
+            start = i
+            while chunk[start] in (SPACE, TAB):
+                start += 1
+
+            if start == i:
+                raise NQParseError("no spaces between object possible graph")
+
+            i = start
+            c = chunk[i]
+
+            if c == LESS_THEN:
+                graph, i = parse_IRIREF(chunk, i, length)
+            elif c == UNDERSCORE:
+                graph, i = parse_blank_node(chunk, i, length)
+            elif c == DOT:
+                # return None, i
+                pass
+            else:
+                raise NQParseError(f"malformed quad optional graph allowed to be IRIREF"
+                                   f" or b_node found {chunk[i - 1: i]} instead")
+
+            while i < length and chunk[i] in {SPACE, TAB}:
+                i += 1
+            if chunk[i] != DOT:
+                raise NQParseError(f" malformed line expected a DOT found {chunk[i: i + 1]}")
+
+            i += 1
+
+            # go to end of line
+
+            while i < length and chunk[i] in {SPACE, TAB, CR}:
+                i += 1
+
+            if i >= length:
+                yield subject, predicate, obj, graph
+
+            elif chunk[i] == HASH:
+                newline_idx = chunk.find(NEWLINE, i)
+                i = newline_idx + 1 if newline_idx != -1 else length
+
+            elif chunk[i] == NEWLINE:
+                i += 1
+            else:
+                raise NQParseError(" after a . there can only be a comment or a newline no other chars are allowed")
+
+            #
+
+            yield subject, predicate, obj, graph
+
+        except Exception  as e:
+            print(e)
+            # skip bad line
+            new_line_index = chunk.find(NEWLINE, i)
+            i = new_line_index + 1 if new_line_index != -1 else length
+            continue
+
 
 
 def parse_chunk(chunk):
@@ -253,9 +526,9 @@ def parse_possible_graph_and_dot(chunk, i, length):
 def parse_IRIREF(chunk, i, length):
     next_greater_then_index = chunk.find(GREATER_THEN, i)
     if next_greater_then_index != -1:
-        subject = chunk[i + 1:next_greater_then_index]
+        iriref = chunk[i + 1:next_greater_then_index]
         i = next_greater_then_index + 1
-        return subject, i
+        return iriref, i
     else:
         raise NQParseError("malformed quad IRI must close with a > char")
 
@@ -280,8 +553,7 @@ def parse_blank_node(chunk, i, length):
 def parse_literal(chunk, i, length):
 
     literal, i = extract_literal_raw(chunk, i, length)
-    language , region, direction = None, None, None
-    IRIREF = None
+    language , region, direction, IRIREF = None, None, None, None
 
     c = chunk[i]
     if c == AT:
@@ -426,12 +698,12 @@ def go_to_end_of_line(chunk, i, length):
 
 def test(filename):
     # Usage (The "Consumer" side)
-    for quad in stream_quads(filename):
-        # print(quad)
+    chunk_size = 1024*1024*64
+    for quad in stream_quads(filename, chunk_size, fast=True):
         pass
 
 start_time = time.perf_counter()
-test(TAIL_NQ_FILE)
+test(SAMPLE_NQ_FILE)
 end_time = time.perf_counter()
 duration = end_time - start_time
 print(f"Function took {duration:.6f} seconds")
