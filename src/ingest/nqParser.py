@@ -1,11 +1,5 @@
-import os
-import time
-# TODO better error messages and handling
 
-SAMPLE_NQ_FILE = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/sample.nq"
-FULL_NQ_FILE = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/eval_full.nq"
-TAIL_NQ_FILE = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/out.nq"
-DB_FILE = "bm_artifacts.db"
+# TODO better error messages and handling
 
 # Constants for fast byte-level comparisons
 LESS_THEN = b'<'[0]  # 60
@@ -53,83 +47,6 @@ for _c in b"0123456789abcdefABCDEF":
 
 class NQParseError(Exception):
     pass
-
-def multi_processing():
-    """
-    Coordinates multiprocessing across file chunks. 
-    Note: Blank nodes (b-nodes) require coordination to ensure 
-    the same label maps to the same ID across different processes.
-    """
-    pass
-
-
-def divide_file_to_chunks(filename, chunk_size=1024 * 1024 * 64):
-    """
-        Calculates (start, end) byte offsets for the entire file.
-        each chunk ends at a valid point i.e. a \n
-    """
-    file_size = os.path.getsize(filename)
-    chunks = []
-    start_ptr = 0
-
-    with open(filename, 'rb') as f:
-
-        while start_ptr < file_size:
-
-            end_ptr = start_ptr + chunk_size
-
-            if end_ptr > file_size:
-                chunks.append((start_ptr, file_size))
-                break
-
-            f.seek(end_ptr) # jump to reading head to end pointer
-            buffer_size = 4096
-            found_new_line = False
-            new_end_of_chunk = 0
-
-            while not found_new_line:
-                # loop until you find a new line or an EOF
-                absolute_position_in_file = f.tell()
-                buf = f.read(buffer_size) # note f.read does move the head pointer
-
-                if not buf:
-                    # reached the EOF
-                    found_new_line = True
-                    new_end_of_chunk =  file_size
-                else:
-
-                    new_line_index = buf.find(NEWLINE)
-                    if new_line_index != -1:
-                        # found a new line
-                        new_end_of_chunk = absolute_position_in_file + new_line_index + 1
-                        found_new_line = True
-
-            chunks.append((start_ptr, new_end_of_chunk))
-            start_ptr = new_end_of_chunk
-
-    return chunks
-
-
-def stream_quads(file_name, chunk_size=1024 * 1024 * 64, fast = False):
-    """
-    Coordinates the reading of chunks and yields individual quads.
-    This is the 'Source' for your output stream.
-    """
-    offsets = divide_file_to_chunks(file_name, chunk_size)
-
-    with open(file_name, 'rb') as f:
-        for start, end in offsets:
-            # Move the read head to the start of our verified chunk
-            f.seek(start)
-            # Read the bytes between start and end
-            chunk_bytes = f.read(end - start)
-
-            # Use 'yield from' to pass quads up from the chunk parser
-            if fast:
-                yield from parse_chunk_fast(chunk_bytes)
-            else:
-                yield from parse_chunk(chunk_bytes)
-
 
 def parse_chunk_fast(chunk):
     i = 0
@@ -622,7 +539,6 @@ def parse_literal(chunk, i, length):
         raise NQParseError(f"malformed quad literal char {c} found after end of literal only a space"
                            f", @, ^^ are allowed after literal")
 
-
 def extract_literal_raw(chunk, i, length):
     # started from a " so we go over 1
     i += 1
@@ -696,14 +612,3 @@ def go_to_end_of_line(chunk, i, length):
     else:
         raise NQParseError(" after a . there can only be a comment or a newline no other chars are allowed")
 
-def test(filename):
-    # Usage (The "Consumer" side)
-    chunk_size = 1024*1024*64
-    for quad in stream_quads(filename, chunk_size, fast=True):
-        pass
-
-start_time = time.perf_counter()
-test(SAMPLE_NQ_FILE)
-end_time = time.perf_counter()
-duration = end_time - start_time
-print(f"Function took {duration:.6f} seconds")
