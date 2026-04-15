@@ -1,6 +1,9 @@
 import os
 import time
 import multiprocessing as mp
+from tqdm import tqdm
+
+from mappers import british_museum
 from nqParser import parse_chunk_fast, parse_chunk
 from mappers.british_museum import bm_mapper
 # The orchestrator (Orbs, batching, timing)
@@ -8,7 +11,9 @@ from mappers.british_museum import bm_mapper
 SAMPLE_NQ_FILE = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/sample.nq"
 FULL_NQ_FILE = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/eval_full.nq"
 TAIL_NQ_FILE = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/out.nq"
-OUTPUT = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/subject_set_out.txt"
+SET_OUTPUT = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/subject_out.txt"
+PREDICATE_OUTPUT = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/pred_out.txt"
+GRAPH_OUTPUT = "/home/adi/Desktop/keep/code/git/repos/the_grand_archive/maybe_useful/bm_eval/graph_out.txt"
 
 DB_FILE = "bm_artifacts.db"
 
@@ -16,6 +21,7 @@ DB_FILE = "bm_artifacts.db"
 def multi_processing(filename, num_producers, chunk_size=1024 * 1024 * 64):
 
     offsets = divide_file_to_chunks(filename, chunk_size)
+    num_chunks = len(offsets)
     chunk_queue = mp.Queue()
     result_queue = mp.Queue()
 
@@ -26,7 +32,7 @@ def multi_processing(filename, num_producers, chunk_size=1024 * 1024 * 64):
     for _ in range(num_producers):
         chunk_queue.put(None)
 
-    consumer_proc = mp.Process(target=consumer_work, args=(result_queue, num_producers, OUTPUT))
+    consumer_proc = mp.Process(target=consumer_work, args=(result_queue, num_producers, num_chunks))
     consumer_proc.start()
 
     procs = []
@@ -40,7 +46,7 @@ def multi_processing(filename, num_producers, chunk_size=1024 * 1024 * 64):
         p.join()
     consumer_proc.join()
 
-    print(f"Done. Schema consolidated in {OUTPUT}")
+    print(f"Done. Schema consolidated ")
 
 
 def divide_file_to_chunks(filename, chunk_size=1024 * 1024 * 64):
@@ -90,11 +96,13 @@ def divide_file_to_chunks(filename, chunk_size=1024 * 1024 * 64):
     return chunks
 
 
-def consumer_work(result_queue, num_producers, output_file):
+def consumer_work(result_queue, num_producers, num_chunks):
     final_subjects = set()
     final_predicates = set()
     final_graphs = set()
     finished_producers = 0
+
+    pbar = tqdm(total=num_chunks, desc="Parsing N-Quads", unit="chunk")
 
     while finished_producers < num_producers:
         data = result_queue.get()
@@ -106,15 +114,20 @@ def consumer_work(result_queue, num_producers, output_file):
         final_subjects.update(subs)
         final_predicates.update(preds)
         final_graphs.update(graphs)
+        pbar.update(1)
+
+    pbar.close()
 
     # Final Write-out
-    with open(output_file, 'w') as f:
+    with open(SET_OUTPUT, 'w') as f:
         f.write("=== UNIQUE SUBJECT PATTERNS ===\n")
         for s in sorted(final_subjects): f.write(f"{s}\n")
+    with open(PREDICATE_OUTPUT, "w") as f:
         f.write("\n=== UNIQUE PREDICATES ===\n")
         for p in sorted(final_predicates): f.write(f"{p}\n")
-        f.write("\n=== UNIQUE GRAPHS ===\n")
-        for g in sorted(final_graphs): f.write(f"{g}\n")
+    # with open(GRAPH_OUTPUT, "w") as f:
+    #     f.write("\n=== UNIQUE GRAPHS ===\n")
+    #     for g in sorted(final_graphs): f.write(f"{g}\n")
 
 
 def producer_work(filename, chunk_queue, result_queue, fast = True):
@@ -142,10 +155,12 @@ def producer_work(filename, chunk_queue, result_queue, fast = True):
             else:
                 quads = parse_chunk(chunk_bytes)
 
-
-        for subject , predicate, _, graph in quads:
-            # TODO process subject Predicate and graph for sets
-            pass
+        i = 0
+        for quad in quads:
+            subject , predicate, obj, graph = british_museum.bm_mapper(quad)
+            local_subjects.add(subject)
+            local_predicates.add(predicate)
+            local_graphs.add(graph)
 
 
         # Send unique sets found in this chunk to the consumer
@@ -153,12 +168,9 @@ def producer_work(filename, chunk_queue, result_queue, fast = True):
 
 
 def stream_quads(file_name, chunk_size=1024 * 1024 * 64, fast = False):
-    """
-    Coordinates the reading of chunks and yields individual quads.
-    This is the 'Source' for your output stream.
-    """
-    offsets = divide_file_to_chunks(file_name, chunk_size)
 
+    offsets = divide_file_to_chunks(file_name, chunk_size)
+    quads = []
     with open(file_name, 'rb') as f:
         for start, end in offsets:
             # Move the read head to the start of our verified chunk
@@ -166,26 +178,20 @@ def stream_quads(file_name, chunk_size=1024 * 1024 * 64, fast = False):
             # Read the bytes between start and end
             chunk_bytes = f.read(end - start)
 
-            # Use 'yield from' to pass quads up from the chunk parser
-            if fast:
-                yield from parse_chunk_fast(chunk_bytes)
-            else:
-                yield from parse_chunk(chunk_bytes)
-
-
-
+            new_quads = parse_chunk_fast(chunk_bytes) if fast else parse_chunk(chunk_bytes)
+            quads.append( new_quads )
 
 
 def test(filename):
     # Usage (The "Consumer" side)
     chunk_size = 1024*1024*64
-    num_producers = 5
-    multi_processing(SAMPLE_NQ_FILE, num_producers, chunk_size)
+    num_producers = 8
+    multi_processing(filename, num_producers, chunk_size)
 
 
 
 start_time = time.perf_counter()
-test(SAMPLE_NQ_FILE)
+test(FULL_NQ_FILE)
 end_time = time.perf_counter()
 duration = end_time - start_time
 print(f"Function took {duration:.6f} seconds")

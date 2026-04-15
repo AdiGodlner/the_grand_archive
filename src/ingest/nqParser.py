@@ -51,6 +51,9 @@ class NQParseError(Exception):
 def parse_chunk_fast(chunk):
     i = 0
     length = len(chunk)
+    quads = []
+
+    graph = None
 
     while i < length:
 
@@ -294,7 +297,7 @@ def parse_chunk_fast(chunk):
                 i += 1
 
             if i >= length:
-                yield subject, predicate, obj, graph
+                pass
 
             elif chunk[i] == HASH:
                 newline_idx = chunk.find(NEWLINE, i)
@@ -306,8 +309,7 @@ def parse_chunk_fast(chunk):
                 raise NQParseError(" after a . there can only be a comment or a newline no other chars are allowed")
 
             #
-
-            yield subject, predicate, obj, graph
+            quads.append((subject, predicate, obj, graph))
 
         except Exception  as e:
             print(e)
@@ -316,15 +318,14 @@ def parse_chunk_fast(chunk):
             i = new_line_index + 1 if new_line_index != -1 else length
             continue
 
+    return quads
 
 
 def parse_chunk(chunk):
-    """
-    Iterates through a chunk and yields valid quads.
-    Expects chunk boundaries aligned to quad boundaries.
-    """
+
     i = 0
     length = len(chunk)
+    quads = []
 
     while i < length:
 
@@ -344,7 +345,7 @@ def parse_chunk(chunk):
             graph, i = parse_possible_graph_and_dot(chunk, i, length)
             i = go_to_end_of_line(chunk, i, length)
 
-            yield subject, predicate, obj, graph
+            quads.append(( subject, predicate, obj, graph))
 
         except Exception  as e:
             print(e)
@@ -352,6 +353,8 @@ def parse_chunk(chunk):
             new_line_index = chunk.find(NEWLINE, i)
             i = new_line_index + 1 if new_line_index != -1 else length
             continue
+
+    return quads
 
 def skip_intra_line_empty_spaces(chunk,i ,length):
 
