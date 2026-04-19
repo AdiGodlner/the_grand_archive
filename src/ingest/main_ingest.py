@@ -46,7 +46,7 @@ def multi_processing(filename, num_producers, chunk_size=1024 * 1024 * 64):
         p.join()
     consumer_proc.join()
 
-    print(f"Done. Schema consolidated ")
+    print("Done. Schema consolidated ")
 
 
 def divide_file_to_chunks(filename, chunk_size=1024 * 1024 * 64):
@@ -121,10 +121,12 @@ def consumer_work(result_queue, num_producers, num_chunks):
     # Final Write-out
     with open(SET_OUTPUT, 'w') as f:
         f.write("=== UNIQUE SUBJECT PATTERNS ===\n")
-        for s in sorted(final_subjects): f.write(f"{s}\n")
+        for s in sorted(final_subjects):
+            f.write(f"{s}\n")
     with open(PREDICATE_OUTPUT, "w") as f:
         f.write("\n=== UNIQUE PREDICATES ===\n")
-        for p in sorted(final_predicates): f.write(f"{p}\n")
+        for p in sorted(final_predicates):
+            f.write(f"{p}\n")
     # with open(GRAPH_OUTPUT, "w") as f:
     #     f.write("\n=== UNIQUE GRAPHS ===\n")
     #     for g in sorted(final_graphs): f.write(f"{g}\n")
@@ -155,7 +157,6 @@ def producer_work(filename, chunk_queue, result_queue, fast = True):
             else:
                 quads = parse_chunk(chunk_bytes)
 
-        i = 0
         for quad in quads:
             subject , predicate, obj, graph = british_museum.bm_mapper(quad)
             local_subjects.add(subject)
